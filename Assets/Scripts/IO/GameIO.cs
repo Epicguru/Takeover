@@ -18,7 +18,7 @@ public static class GameIO
     {
         get
         {
-            return Path.Combine(DataDirectory, "Input", "Default.keys");
+            return "Default Keys.txt";
         }
     }
     public static string CurrentInputPath
@@ -27,6 +27,11 @@ public static class GameIO
         {
             return Path.Combine(DataDirectory, "Input", "Current.keys");
         }
+    }
+
+    public static string FullResourcePath(string internalPath)
+    {
+        return Path.Combine(Application.dataPath, "Resources", internalPath);
     }
 
     public static void ObjectToFile(object o, string path)
@@ -39,6 +44,43 @@ public static class GameIO
 
         // Write the json to file.
         File.WriteAllText(path, json);
+    }
+
+    public static void ObjectToResource(object o, string internalPath)
+    {
+        // Get the full path name. This is EDITOR ONLY!
+        string fullPath = FullResourcePath(internalPath);
+
+        // Make the containing directory.
+        EnsureDirectory(DirectoryFromFile(fullPath));
+
+        // Make json from the object.
+        string json = JsonConvert.SerializeObject(o, Formatting.Indented);
+
+        // Write the json to file.
+        File.WriteAllText(fullPath, json);
+    }
+
+    public static T ResourceToObject<T>(string internalPath)
+    {
+        // Try to load from resources and deserialize.
+        try
+        {
+            // Load json from the resources folder.
+            if (internalPath.Contains("."))
+            {
+                internalPath = internalPath.Remove(internalPath.IndexOf("."));
+            }
+            string json = Resources.Load<TextAsset>(internalPath).text;
+            T obj = JsonConvert.DeserializeObject<T>(json);
+            return obj;
+        }
+        catch(Exception e)
+        {
+            Debug.LogError("Exception when loading or deserialzing json from resources '{0}'!".Form(internalPath));
+            Debug.LogError(e);
+            return default(T);
+        }
     }
 
     public static T FileToObject<T>(string path)
@@ -58,9 +100,10 @@ public static class GameIO
                 T obj = JsonConvert.DeserializeObject<T>(json);
                 return obj;
             }
-            catch
+            catch(Exception e)
             {
                 Debug.LogError(string.Format("Exception when loading or deserialzing json from file '{0}'!", path));
+                Debug.LogError(e);
                 return default(T);
             }
         }
