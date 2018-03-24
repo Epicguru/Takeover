@@ -13,6 +13,7 @@ public class Player : NetworkBehaviour
     }
 
     public PlayerMovement Movement;
+    public PlayerCamera Camera;
 
     public void Awake()
     {

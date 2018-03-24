@@ -31,25 +31,29 @@ public class PlayerMovement : NetworkBehaviour
 
     public void UpdateTargetPos()
     {
-        float dt = Time.unscaledDeltaTime;
+        Vector2 vel = new Vector2();
 
         if(InputManager.IsPressed("Move Right"))
         {
-            TargetPos.x += BaseSpeed * dt;
+            vel.x += 1;
         }
         if (InputManager.IsPressed("Move Left"))
         {
-            TargetPos.x -= BaseSpeed * dt;
+            vel.x -= 1;
         }
         if (InputManager.IsPressed("Move Up"))
         {
-            TargetPos.y += BaseSpeed * dt;
+            vel.y += 1;
         }
         if (InputManager.IsPressed("Move Down"))
         {
-            TargetPos.y -= BaseSpeed * dt;
-
+            vel.y -= 1;
         }
+
+        vel.Normalize();
+        vel *= BaseSpeed;
+        vel *= Time.unscaledDeltaTime;
+        TargetPos += vel;
     }
 
     public void LerpToTarget()
