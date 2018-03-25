@@ -9,7 +9,7 @@ public class NetPosSync : NetworkBehaviour
 
     [Header("Global")]
     [Range(0f, 60f)]
-    public float UpdatesPerSecond = 20f;
+    public float UpdatesPerSecond = 30f;
     public QosType Channel = QosType.Unreliable;
 
     [System.Serializable]
@@ -34,6 +34,14 @@ public class NetPosSync : NetworkBehaviour
     [SerializeField]
     private Rot _Rotation;
 
+    [System.Serializable]
+    private class Parent
+    {
+        public bool Sync = false;
+    }
+    [SerializeField]
+    private Parent _Parent;
+
     [Header("Debug")]
     [SyncVar]
     [ReadOnly]
@@ -42,6 +50,22 @@ public class NetPosSync : NetworkBehaviour
     [SyncVar]
     [ReadOnly]
     public float Angle;
+    
+    [SyncVar]
+    [ReadOnly]
+    public NetworkInstanceId ParentID;
+
+    [SyncVar]
+    [ReadOnly]
+    public string ParentName;
+
+    public bool IsParented
+    {
+        get
+        {
+            return ParentID != NetworkInstanceId.Invalid && !ParentID.IsEmpty() && !string.IsNullOrEmpty(ParentName);
+        }
+    }
 
     private bool dirty;
 
@@ -65,9 +89,67 @@ public class NetPosSync : NetworkBehaviour
     }
 
     [Server]
+    public void SetParent(NetParent parent)
+    {
+        if (!_Parent.Sync)
+        {
+            Debug.LogWarning("Parent synchronization is disabled for {0}, parenting in local scene only...".Form(gameObject.name));
+            transform.SetParent(parent == null ? null : parent.transform);
+        }
+        else
+        {
+            if (parent == null)
+            {
+                if (!IsParented)
+                {
+                    // Requested to unparent, but already unparented!
+                    if (transform.parent != null)
+                    {
+                        transform.SetParent(null);
+                    }
+                    return;
+                }
+                else
+                {
+                    // This will sync with the clients.
+                    ParentID = NetworkInstanceId.Invalid;
+                    ParentName = "";
+                    if (transform.parent != null)
+                    {
+                        transform.SetParent(null);
+                    }
+                }
+            }
+            else
+            {
+                if(parent.NetID == null)
+                {
+                    Debug.LogWarning("Invalid NetParent setup, cannot parent.");
+                    return;
+                }
+                NetworkInstanceId id = parent.NetID.netId;
+                string name = parent.ID;
+
+                if(id == ParentID)
+                {
+                    if(name == ParentName)
+                    {
+                        // Already parented to the object.
+                        return;
+                    }
+                }
+
+                // Apply to syncvars.
+                ParentID = id;
+                ParentName = name;
+            }
+        }
+    }
+
+    [Server]
     public void UpdateDirty()
     {
-        if((Vector2)transform.position != Position)
+        if((Vector2)transform.localPosition != Position)
         {
             dirty = true;
         }
@@ -85,7 +167,7 @@ public class NetPosSync : NetworkBehaviour
     {
         if (dirty)
         {
-            Position = transform.position;
+            Position = transform.localPosition;
             if (_Rotation.Sync)
             {
                 Angle = transform.localEulerAngles.z;
@@ -99,11 +181,11 @@ public class NetPosSync : NetworkBehaviour
     {
         if (_Position.Lerp)
         {
-            transform.position = Vector2.Lerp(transform.position, Position, Time.deltaTime * _Position.LerpSpeed);
+            transform.localPosition = Vector2.Lerp(transform.localPosition, Position, Time.deltaTime * _Position.LerpSpeed);
         }
         else
         {
-            transform.position = Position;
+            transform.localPosition = Position;
         }
     }
 
