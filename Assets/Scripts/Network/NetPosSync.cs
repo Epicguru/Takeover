@@ -55,7 +55,7 @@ public class NetPosSync : NetworkBehaviour
     [ReadOnly]
     public NetworkInstanceId ParentID;
 
-    [SyncVar]
+    [SyncVar(hook = "NewParent")]
     [ReadOnly]
     public string ParentName;
 
@@ -69,13 +69,21 @@ public class NetPosSync : NetworkBehaviour
 
     private bool dirty;
 
-    public void Update()
+    public override void OnStartClient()
     {
         if (isServer)
         {
-            transform.Rotate(0f, 0f, 360f * Time.deltaTime);
+            // This might be called on a host: a client and a server in the same process.
+            return;
         }
+        if (_Parent.Sync)
+        {
+            NewParent(ParentName);
+        }
+    }
 
+    public void Update()
+    {
         if(isClient && !isServer)
         {
             LerpToPosition();
@@ -142,7 +150,58 @@ public class NetPosSync : NetworkBehaviour
                 // Apply to syncvars.
                 ParentID = id;
                 ParentName = name;
+                transform.SetParent(parent.transform);
             }
+        }
+    }
+
+    [ClientCallback]
+    private void NewParent(string name)
+    {
+        if (isServer)
+            return;
+
+        Debug.Log("New Parent! {0}".Form(name));
+
+        this.ParentName = name;
+
+        // The ID should have already updated beforehand.
+        if (!string.IsNullOrEmpty(name) && !IsParented)
+        {
+            Debug.LogError("Should be attached to '{0}' but the net ID is invalid or empty! Cannot parent!".Form(name));
+            return;
+        }
+
+        if (IsParented)
+        {
+            var go = ClientScene.FindLocalObject(ParentID);
+            if(go == null)
+            {
+                Debug.LogError("Scene ID is valid, but returned no game object?!? Cannot parent!");
+                return;
+            }
+            else
+            {
+                // Now find the NetParent that should be a child of the game object.
+                NetParent[] parents = go.GetComponentsInChildren<NetParent>();
+                foreach (var parent in parents)
+                {
+                    if(parent.ID == name)
+                    {
+                        // Found the correct parent, apply!
+                        transform.SetParent(parent.transform);
+                        return;
+                    }
+                }
+                // IF we get to here the parent was not found...
+                Debug.LogError("NetParent '{0}' was not found on networked object '{1}'! Cannot parent!".Form(name, go.name));
+                return;
+            }
+        }
+        else
+        {
+            // Just unparent from everything.
+            transform.SetParent(null);
         }
     }
 
