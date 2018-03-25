@@ -501,11 +501,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4071c0b2e26ef2a4f941577fce6b310f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  UpdatesPerSecond: 20
-  LerpSpeed: 50
-  Lerp: 1
+  UpdatesPerSecond: 40
+  Channel: 0
+  _Position:
+    LerpSpeed: 25
+    Lerp: 1
+  _Rotation:
+    Sync: 1
+    Lerp: 1
+    LerpSpeed: 25
   Position: {x: 0, y: 0}
-  Dirty: 0
+  Angle: 0
 --- !u!114 &1919102726
 MonoBehaviour:
   m_ObjectHideFlags: 0
